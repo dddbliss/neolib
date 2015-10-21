@@ -19,45 +19,66 @@ namespace NPLib
 			CurrentUser = new User();
 		}
 
-		public bool Login(string username, string password)
-		{
-			var post_data = new Dictionary<string, string>() {
-				{"destination", "/index.phtml"},
-				{"username", username},
-				{"password", password}
-			};
+        public async Task<bool> Login(string username, string password)
+        {
+            var post_data = new Dictionary<string, string>() {
+                {"destination", "/index.phtml"},
+                {"username", username},
+                {"password", password}
+            };
 
-			var _response = _client.Post("http://www.neopets.com/login.phtml", "http://www.neopets.com/index.phtml", post_data).ToHtmlDocument();
+            var _result = await _client.Post("http://www.neopets.com/login.phtml", "http://www.neopets.com/index.phtml", post_data);
+            var _response = _result.ToHtmlDocument();
 
-			string _np = _response.DocumentNode.SelectNodes("//a[@id='npanchor']")[0].InnerText;
-			string _nc = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']")[0].InnerText;
+            string _np = _response.DocumentNode.SelectNodes("//a[@id='npanchor']")[0].InnerText;
+            string _nc = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']")[0].InnerText;
 
-			if(true)
-			{
-				CurrentUser = new User()
-				{
-					username = username,
-					NP = int.Parse(_np.Replace(",", "")),
-					NC = int.Parse(_nc.Replace(",", ""))
-				};
+            if (true)
+            {
+                CurrentUser = new User()
+                {
+                    username = username,
+                    NP = int.Parse(_np.Replace(",", "")),
+                    NC = int.Parse(_nc.Replace(",", ""))
+                };
 
-				_client.RegisterCallback(UpdateCurrencies);
+                return true;
+            }
+        }
+		//public bool Login(string username, string password)
+		//{
+		//	var post_data = new Dictionary<string, string>() {
+		//		{"destination", "/index.phtml"},
+		//		{"username", username},
+		//		{"password", password}
+		//	};
 
-				return true;
-			}
+		//	var _response = _client.Post("http://www.neopets.com/login.phtml", "http://www.neopets.com/index.phtml", post_data).ToHtmlDocument();
+
+		//	string _np = _response.DocumentNode.SelectNodes("//a[@id='npanchor']")[0].InnerText;
+		//	string _nc = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']")[0].InnerText;
+
+		//	if(true)
+		//	{
+		//		CurrentUser = new User()
+		//		{
+		//			username = username,
+		//			NP = int.Parse(_np.Replace(",", "")),
+		//			NC = int.Parse(_nc.Replace(",", ""))
+		//		};
+
+		//		_client.RegisterCallback(UpdateCurrencies);
+
+		//		return true;
+		//	}
 			
-		} 
+		//} 
 
-		public bool Logout()
+		public async Task<bool> Logout()
 		{
-			_client.Get("http://www.neopets.com/logout.phtml", "http://www.neopets.com/");
+			await _client.Get("http://www.neopets.com/logout.phtml", "http://www.neopets.com/");
 
 			return true;
-		}
-
-		private void UpdateCurrencies(object sender, WebRequestEventArgs e)
-		{
-			Console.WriteLine("UPDATE CURRENCIES");
 		}
 	}
 }

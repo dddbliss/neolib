@@ -4,20 +4,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NPLib.Utilities
 {
-	public delegate void WebRequestCompleteEventHandler(object sender, WebRequestEventArgs e);
-	public delegate void WebRequestStartEventHandler(object sender, EventArgs e);
-
 	public class HttpWrapper
 	{
-		public event WebRequestCompleteEventHandler WebRequestCompleted;
-		public event WebRequestStartEventHandler WebRequestStarted;
 
 		private HttpWebRequest _request { get; set; }
+        private HttpClient _client { get; set; }
 		private CookieContainer _cookie_jar { get; set; }
 
 		public HttpWrapper()
@@ -35,107 +32,97 @@ namespace NPLib.Utilities
 			_request.UserAgent = "";
 		}
 
-		#endregion
+        private void PrepareWebClient(string url, string referer)
+        {
+            HttpMessageHandler _client_handler = new HttpClientHandler()
+            {
+                CookieContainer = _cookie_jar,
+            };
 
-		#region Protected
-
-		protected virtual void OnWebRequestCompleted(WebRequestEventArgs e)
-		{
-			if (WebRequestCompleted != null)
-			{
-				WebRequestCompleted(this, e);
-			}
-		}
-
-		protected virtual void OnWebRequestStarted(EventArgs e)
-		{
-			if (WebRequestStarted != null)
-			{
-				WebRequestStarted(this, e);
-			}
-		}
+            _client = new HttpClient(_client_handler) { BaseAddress = new Uri(url) };
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36");
+            _client.DefaultRequestHeaders.Referrer = new Uri(referer);
+        }
 
 		#endregion
 
 		#region Public
 
-		public string Get(string url, string referer)
+		public async Task<string> Get(string url, string referer)
 		{
-			PrepareWebRequest(url, referer);
-
-			var _thread = Task.Factory.FromAsync<WebResponse>(_request.BeginGetResponse, _request.EndGetResponse, null)
-				.ContinueWith(task =>
-				{
-					var _res = (HttpWebResponse)task.Result;
-					
-					return _res;
-				});
-
-			var _response = _thread.Result;
-			var _response_stream = _response.GetResponseStream();
-			var _content = new StreamReader(_response_stream).ReadToEnd();
-
-			return _content;
+			PrepareWebClient(url, referer);
+            using (HttpResponseMessage response = await _client.GetAsync(url).ConfigureAwait(false))
+            {
+                using (HttpContent content = response.Content)
+                {
+                    string result = await content.ReadAsStringAsync().ConfigureAwait(false);
+                    return result;
+                }
+            }
 		}
 
-		public byte[] GetBinary(string url, string referer)
-		{
-			PrepareWebRequest(url, referer);
+        public async Task<byte[]> GetBinary(string url, string referer)
+        {
+            PrepareWebClient(url, referer);
+            var response = await _client.GetByteArrayAsync(url).ConfigureAwait(false);
+            return response;
+        }
 
-			OnWebRequestStarted(new EventArgs());
+        public async Task<string> Post(string url, string referer, Dictionary<string,string> post_data)
+        {
+            PrepareWebClient(url, referer);
+            using (HttpResponseMessage response = await _client.PostAsync(url, new FormUrlEncodedContent(post_data)).ConfigureAwait(false))
+            {
+                using (HttpContent content = response.Content)
+                {
+                    string result = await content.ReadAsStringAsync().ConfigureAwait(false);
+                    return result;
+                }
+            }
+        }
 
-			var _response = _request.GetResponse();
-			var _response_stream = _response.GetResponseStream();
-			var _content = new BinaryReader(_response_stream).ReadBytes((int)_response.ContentLength);
+  //      public string Get(string url, string referer)
+  //      {
+  //          PrepareWebRequest(url, referer);
 
-			OnWebRequestCompleted(new WebRequestEventArgs(null));
-			return _content;
-		}
+  //          var _response = _request.GetResponse();
+  //          var _response_stream = _response.GetResponseStream();
+  //          var _content = new StreamReader(_response_stream).ReadToEnd();
 
-		public string Post(string url, string referer, Dictionary<string, string> post_data)
-		{
-			PrepareWebRequest(url, referer);
-			_request.Method = "POST";
-			_request.ContentType = "application/x-www-form-urlencoded";
+  //          return _content;
+  //      }
 
-			var _post_data_array = Encoding.UTF8.GetBytes(post_data.ToPostData());
-			_request.ContentLength = _post_data_array.Length;
-			var _request_stream = _request.GetRequestStream();
-			_request_stream.Write(_post_data_array, 0, _post_data_array.Length);
-			_request_stream.Close();
+		//public byte[] GetBinary(string url, string referer)
+		//{
+		//	PrepareWebRequest(url, referer);
 
-			OnWebRequestStarted(new EventArgs());
+			
+		//	var _response = _request.GetResponse();
+		//	var _response_stream = _response.GetResponseStream();
+		//	var _content = new BinaryReader(_response_stream).ReadBytes((int)_response.ContentLength);
 
-			var _response_stream = _request.GetResponse().GetResponseStream();
-			var _content = new StreamReader(_response_stream).ReadToEnd();
-			var _document = _content.ToHtmlDocument();
+		//	return _content;
+		//}
 
-			OnWebRequestCompleted(new WebRequestEventArgs(_document));
-			return _content;
-		}
+		//public string Post(string url, string referer, Dictionary<string, string> post_data)
+		//{
+		//	PrepareWebRequest(url, referer);
+		//	_request.Method = "POST";
+		//	_request.ContentType = "application/x-www-form-urlencoded";
+
+		//	var _post_data_array = Encoding.UTF8.GetBytes(post_data.ToPostData());
+		//	_request.ContentLength = _post_data_array.Length;
+		//	var _request_stream = _request.GetRequestStream();
+		//	_request_stream.Write(_post_data_array, 0, _post_data_array.Length);
+		//	_request_stream.Close();
+
+		//	var _response_stream = _request.GetResponse().GetResponseStream();
+		//	var _content = new StreamReader(_response_stream).ReadToEnd();
+		//	var _document = _content.ToHtmlDocument();
+
+		//	return _content;
+		//}
 
 		#endregion
 	}
-
-#region Events
-
-
-	public class WebRequestEventArgs : EventArgs
-	{
-		private readonly HtmlDocument _document;
-
-		public WebRequestEventArgs(HtmlDocument document)
-		{
-			_document = document;
-		}
-
-		public HtmlDocument Document
-		{
-			get
-			{
-				return _document;
-			}
-		}
-	}
-#endregion
 }

@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace NPLib.Models
 {
-	public class MainShopItem
+	public class MainShopItem : Item
 	{
-		public string Name { get; set; }
-		public Uri Image { get; set; }
 		public string HaggleUri { get; set; }
 		public string RefererUri { get; set; }
 		public int InStock { get; set; }

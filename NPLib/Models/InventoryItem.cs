@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace NPLib.Models
 {
-	public class InventoryItem
+	public class InventoryItem : Item
 	{
-		public string Name { get; set; }
-		public Uri Image { get; set; }
+		
 
 		// TODO: Inventory Actions.
 	}

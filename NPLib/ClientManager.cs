@@ -30,46 +30,22 @@ namespace NPLib
 			}
 		}
 
-		public string Get(string url, string referer, int delay_ms = 0)
+		public async Task<string> Get(string url, string referer, int delay_ms = 0)
 		{	
 			if(delay_ms > 0)
 				Thread.Sleep(delay_ms);
 
-			return _wrapper.Get(url, referer);
+			return await _wrapper.Get(url, referer);
 		}
 
-		public byte[] GetBinary(string url, string referer)
+		public async Task<byte[]> GetBinary(string url, string referer)
 		{
-			return _wrapper.GetBinary(url, referer);
+			return await _wrapper.GetBinary(url, referer);
 		}
 
-		public string Post(string url, string referer, Dictionary<string, string> post_data, int delay_ms = 0)
+		public async Task<string> Post(string url, string referer, Dictionary<string, string> post_data, int delay_ms = 0)
 		{
-			Task<string> _request = new Task<string>(() =>
-			{
-				IsProcessing = true;
-
-				if(delay_ms > 0)
-					Thread.Sleep(delay_ms);
-				
-				return _wrapper.Post(url, referer, post_data);
-			});
-
-			_request.Start();
-
-			IsProcessing = false;
-
-			return _request.Result;
-		}
-
-		public void RegisterCallback(WebRequestCompleteEventHandler callback)
-		{
-			_wrapper.WebRequestCompleted += callback;
-		}
-
-		public void UnRegisterCallback(WebRequestCompleteEventHandler callback)
-		{
-			_wrapper.WebRequestCompleted -= callback;
+			return await _wrapper.Post(url, referer, post_data);
 		}
 	}
 }

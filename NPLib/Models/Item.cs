@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace NPLib.Models
 {
-	class Item
+	public class Item
 	{
+        public string Name { get; set; }
+        public Uri Image { get; set; }
 	}
 }

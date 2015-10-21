@@ -28,18 +28,6 @@ namespace NPLib
 			return subString;
 		}
 
-		public static string ToPostData(this Dictionary<string,string> @this)
-		{
-			List<string> _post_data = new List<string>();
-
-			foreach (var kvp in @this)
-			{
-				_post_data.Add(string.Format("{0}={1}", kvp.Key, Uri.EscapeDataString(kvp.Value)));
-			}
-
-			return string.Join("&", _post_data);
-		}
-
 		public static HtmlDocument ToHtmlDocument(this string @this)
 		{
 			var _document = new HtmlDocument();

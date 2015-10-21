@@ -16,10 +16,12 @@ namespace NPLib
 			_client = ClientManager.Instance;
 		}
 
-		public List<InventoryItem> GetInventory()
+		public async Task<List<InventoryItem>> GetInventory()
 		{
 			List<InventoryItem> _item_list = new List<InventoryItem>();
-			var _response = _client.Get("http://www.neopets.com/inventory.phtml", "http://www.neopets.com/index.phtml").ToHtmlDocument();
+            var _result = await _client.Get("http://www.neopets.com/inventory.phtml", "http://www.neopets.com/index.phtml");
+                
+             var _response = _result.ToHtmlDocument();
 
 			var _td_items = _response.DocumentNode.SelectNodes("//td[@class='']");
 			foreach (var _item in _td_items)

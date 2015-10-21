@@ -19,35 +19,44 @@ namespace NPLib
 			_client = ClientManager.Instance;
 		}
 
-		public List<MainShopItem> GetItemsInShop(int object_id)
+		public async Task<List<MainShopItem>> GetItemsInShop(int object_id)
 		{
 			List<MainShopItem> _item_list = new List<MainShopItem>();
-			var _response = _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml").ToHtmlDocument();
+            var _result = await _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml");
+            var _response = _result.ToHtmlDocument();
 
-			var _items_in_stock = _response.DocumentNode.SelectNodes("//td[@width='120']");
-			foreach (var item in _items_in_stock)
-			{
-				var name = item.InnerHtml.Substring("</a><b>", "</b><br>");
-				var haggle_url = item.InnerHtml.Substring("this.href='", "';if (!confirm").Replace("'+'", "");
-				var cost = item.InnerHtml.Substring("<br>Cost: ", " NP<br>");
-				var in_stock = item.InnerHtml.Substring("</b><br>", " in stock");
-				var image = item.InnerHtml.Substring("<img src=\"", "\" width=\"80\"");
+            if(_result.Contains("sold out of"))
+            {
+                // Out of stock... do nothing.
+            }
+            else
+            {
+                var _items_in_stock = _response.DocumentNode.SelectNodes("//td[@width='120']");
+                foreach (var item in _items_in_stock)
+                {
+                    var name = item.InnerHtml.Substring("</a><b>", "</b><br>");
+                    var haggle_url = item.InnerHtml.Substring("this.href='", "';if (!confirm").Replace("'+'", "");
+                    var cost = item.InnerHtml.Substring("<br>Cost: ", " NP<br>");
+                    var in_stock = item.InnerHtml.Substring("</b><br>", " in stock");
+                    var image = item.InnerHtml.Substring("<img src=\"", "\" width=\"80\"");
 
-				_item_list.Add(new MainShopItem()
-				{
-					Name = name,
-					HaggleUri = "http://www.neopets.com/" + haggle_url,
-					RefererUri = "http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(),
-					Cost = int.Parse(cost.Replace(",", "")),
-					InStock = int.Parse(in_stock.Replace(",", "")),
-					Image = new Uri(image)
-				});
-			}
+                    _item_list.Add(new MainShopItem()
+                    {
+                        Name = name,
+                        HaggleUri = "http://www.neopets.com/" + haggle_url,
+                        RefererUri = "http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(),
+                        Cost = int.Parse(cost.Replace(",", "")),
+                        InStock = int.Parse(in_stock.Replace(",", "")),
+                        Image = new Uri(image)
+                    });
+                }
+            }
+			
 
 			return _item_list;
 		}
 
-		public Dictionary<int, string> GetMainShops()
+		public static Dictionary<int, string> GetAllMainShops()
 		{
 			return new Dictionary<int, string>() 
 			{
@@ -160,13 +169,13 @@ namespace NPLib
 			};
 		}
 
-		public MainShopTransaction DoBuyProcess(MainShopItem item, int haggle)
+		public async Task<MainShopTransaction> DoBuyProcess(MainShopItem item, int haggle)
 		{
-			var _response = _client.Get(item.HaggleUri, item.RefererUri);
+			var _response = await _client.Get(item.HaggleUri, item.RefererUri);
 
 			var captcha_url = "http://www.neopets.com/" + _response.Substring("<input type=\"image\" src=\"", "\" style=\"border");
 
-			var _image_data = _client.GetBinary(captcha_url, item.RefererUri);
+			var _image_data = await _client.GetBinary(captcha_url, item.RefererUri);
 
 			using (var ms = new MemoryStream(_image_data))
 			{
@@ -181,7 +190,7 @@ namespace NPLib
 					{"y", darkestPixel.Y.ToString()}
 				};
 
-				var _response_purchase = _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data);
+				var _response_purchase = await _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data);
 
 				if (_response_purchase.Contains("successful"))
 				{

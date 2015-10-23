@@ -1,4 +1,7 @@
-﻿using NPLib.Utilities;
+﻿using NPLib.Events;
+using NPLib.Models;
+using NPLib.Processors;
+using NPLib.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,15 +18,30 @@ namespace NPLib
 		private HttpWrapper _wrapper { get; set; }
         private HttpQueue _queue { get; set; }
 
-        private Action<string> MessageReceiver { get; set; }
+		private List<IProcessor> _processors { get; set; }
 
-		public string Status { get; set; }
-		public bool IsProcessing { get; set; }
+        private Action<string> MessageReceiver { get; set; }
+		private Action<Event> EventReceiver { get; set; }
+
+		public ClientSettings Settings { get; set; }
 
 		private ClientManager() 
 		{
 			_wrapper = new HttpWrapper();
             _queue = new HttpQueue();
+
+			_processors = new List<IProcessor>();
+			_processors.Add(new CurrencyProcessor());
+
+			Settings = new ClientSettings()
+			{
+				GeneralWaitMin = 3.0m,
+				GeneralWaitMax = 6.0m,
+				PreHaggleWaitMin = 0.5m,
+				PreHaggleWaitMax = 0.9m,
+				OCRWaitMin = 0.5m,
+				OCRWaitMax = 0.9m,
+			};
 
             _queue.StartQueue();
 		}
@@ -51,33 +69,29 @@ namespace NPLib
             _queue.AddQueueItem(new HttpQueueItem(url, referer: referer, post_data: post_data, pre_delay: delay_ms, callback: action));
         }
 
-        public Task ProcessQueueItem(HttpQueueItem item)
+        public async void ProcessQueueItem(HttpQueueItem item)
         {
-            IsProcessing = true;
-
-            return new Task(() =>
-            {
-                object data = new object();
-                switch (item.Type)
+				object data = new object();
+                
+				// Wait for pre-defined time.
+				Task.Delay(item.PreDelay).Wait();
+			
+				switch (item.Type)
                 {
                     case HttpRequestType.Get:
-                        Task.Delay(item.PreDelay * 1000).Wait();
-                        data = _wrapper.Get(item.Url.ToString(), item.Referer.ToString()).Result;
+                        data = await _wrapper.Get(item.Url.ToString(), item.Referer.ToString());
                         break;
                     case HttpRequestType.Post:
-                        data =  _wrapper.Post(item.Url.ToString(), item.Referer.ToString(), item.PostData).Result;
+                        data = await _wrapper.Post(item.Url.ToString(), item.Referer.ToString(), item.PostData);
                         break;
                     case HttpRequestType.Binary:
-                        data = _wrapper.GetBinary(item.Url.ToString(), item.Referer.ToString()).Result;
+                        data = await _wrapper.GetBinary(item.Url.ToString(), item.Referer.ToString());
                         break;
                 }
-
-                IsProcessing = false;
                 item.Callback.Invoke(data);
-                
-            });
-            
-            
+
+				if(item.Type == HttpRequestType.Get || item.Type == HttpRequestType.Post)
+					_processors.ForEach(processor => processor.Process((string)data));
         }
 
         public void RegisterMessageAction(Action<string> messageReceiver)
@@ -89,6 +103,27 @@ namespace NPLib
         {
             MessageReceiver.Invoke(message);
         }
+
+		public void RegisterEventHandler(Action<Event> eventReceiver)
+		{
+			EventReceiver = eventReceiver;
+		}
+
+		public void SendEvent(Event _event)
+		{
+			EventReceiver.Invoke(_event);
+		}
+
+		public int GetRandomMS(decimal min, decimal max)
+		{
+			int min_int = Convert.ToInt32(min * 1000m);
+			int max_int = Convert.ToInt32(max * 1000m);
+
+			var rand = new Random(new System.DateTime().Millisecond);
+			var value = rand.Next(min_int, max_int);
+
+			return value;
+		}
 
         #region IDisposable Support
         private bool disposedValue = false;

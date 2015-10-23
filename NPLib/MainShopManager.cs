@@ -21,6 +21,7 @@ namespace NPLib
 
 		public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
 		{
+			Task.Delay(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin)).Wait();
             _client.SendMessage("Entering the shop.");
             _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml", new Action<object>((response) =>
             {
@@ -61,7 +62,7 @@ namespace NPLib
                     _client.SendMessage(String.Format("Shop appears to have {0} products.", _item_list.Count));
                     callback.Invoke(_item_list);
                 }
-            }));
+            }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin));
 
 		}
 
@@ -217,12 +218,12 @@ namespace NPLib
                             {
                                 callback.Invoke(null);
                             }
-                        }));
+						}), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.OCRWaitMin, ClientManager.Instance.Settings.OCRWaitMax));
                         
 
                     }
                 }));
-            }));
+			}), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.PreHaggleWaitMin, ClientManager.Instance.Settings.PreHaggleWaitMax));
 
 			
 		}

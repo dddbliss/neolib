@@ -62,36 +62,33 @@ namespace NPLib
     public class HttpQueue
     {
         public ConcurrentQueue<HttpQueueItem> Queue { get; set; }
+		private BlockingCollection<HttpQueueItem> Collection { get; set; }
         public Task Runner { get; set; }
         private bool IsQueueActive { get; set; }
 
         public HttpQueue()
         {
             Queue = new ConcurrentQueue<HttpQueueItem>();
+			Collection = new BlockingCollection<HttpQueueItem>(Queue);
             IsQueueActive = false;
         }
 
-        public async void StartQueue()
+        public void StartQueue()
         {
             IsQueueActive = true;
             Runner = new Task(() =>
             {
                 while(IsQueueActive)
                 {
-                    // Item in queue.
-                    HttpQueueItem item = new HttpQueueItem();
-                    if (Queue.TryDequeue(out item))
-                    {
-                        //Task.Delay(item.PreDelay).Wait();
-                        ClientManager.Instance.ProcessQueueItem(item).Start();
-                        
-                        //Task.Delay(item.PostDelay);
-                    }
-                    else
-                    {
-                        // Nothing to do, we wait.
-                        Task.Delay(100).Wait();
-                    }
+					if(Collection.Count() > 0)
+					{
+						var item = Collection.Take();
+						ClientManager.Instance.ProcessQueueItem(item);
+					}
+					else
+					{
+						Task.Delay(100).Wait();
+					}
                 }
                 
             });
@@ -106,8 +103,7 @@ namespace NPLib
 
         public void AddQueueItem(HttpQueueItem item)
         {
-            if(!(Queue.Where(i => i.Url == item.Url && i.Referer == item.Referer).Count() > 0))
-                Queue.Enqueue(item);
+			Collection.Add(item);
         }
     }
 }

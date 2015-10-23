@@ -48,7 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClientManager.cs" />
-    <Compile Include="Extensions\UriExtensions.cs" />
+    <Compile Include="HttpQueue.cs" />
     <Compile Include="InventoryManager.cs" />
     <Compile Include="Models\MainShopItem.cs" />
     <Compile Include="MainShopManager.cs" />

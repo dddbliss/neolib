@@ -16,22 +16,24 @@ namespace NPLib
 			_client = ClientManager.Instance;
 		}
 
-		public async Task<List<InventoryItem>> GetInventory()
+		public void GetInventory(Action<List<InventoryItem>> callback)
 		{
 			List<InventoryItem> _item_list = new List<InventoryItem>();
-            var _result = await _client.Get("http://www.neopets.com/inventory.phtml", "http://www.neopets.com/index.phtml");
-                
-             var _response = _result.ToHtmlDocument();
+            _client.Get("http://www.neopets.com/inventory.phtml", "http://www.neopets.com/index.phtml", new Action<object>((response) =>
+            {
+                var _result = (string)response;
+                var _response = _result.ToHtmlDocument();
 
-			var _td_items = _response.DocumentNode.SelectNodes("//td[@class='']");
-			foreach (var _item in _td_items)
-			{
-				var name = _item.InnerText;
-				var image = new Uri(_item.SelectSingleNode("a/img").GetAttributeValue("src", "about:none"));
-				_item_list.Add(new InventoryItem() { Name = name, Image = image });
-			}
+                var _td_items = _response.DocumentNode.SelectNodes("//td[@class='']");
+                foreach (var _item in _td_items)
+                {
+                    var name = _item.InnerText;
+                    var image = new Uri(_item.SelectSingleNode("a/img").GetAttributeValue("src", "about:none"));
+                    _item_list.Add(new InventoryItem() { Name = name, Image = image });
+                }
 
-			return _item_list;
+                callback.Invoke(_item_list);
+            }));
 		}
 	}
 }

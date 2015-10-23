@@ -19,41 +19,50 @@ namespace NPLib
 			_client = ClientManager.Instance;
 		}
 
-		public async Task<List<MainShopItem>> GetItemsInShop(int object_id)
+		public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
 		{
-			List<MainShopItem> _item_list = new List<MainShopItem>();
-            var _result = await _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml");
-            var _response = _result.ToHtmlDocument();
+            _client.SendMessage("Entering the shop.");
+            _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml", new Action<object>((response) =>
+            {
+                List<MainShopItem> _item_list = new List<MainShopItem>();
 
-            if(_result.Contains("sold out of"))
-            {
-                // Out of stock... do nothing.
-            }
-            else
-            {
-                var _items_in_stock = _response.DocumentNode.SelectNodes("//td[@width='120']");
-                foreach (var item in _items_in_stock)
+                var _result = (string)response;
+                var _response = _result.ToHtmlDocument();
+
+                if (_result.Contains("sold out of"))
                 {
-                    var name = item.InnerHtml.Substring("</a><b>", "</b><br>");
-                    var haggle_url = item.InnerHtml.Substring("this.href='", "';if (!confirm").Replace("'+'", "");
-                    var cost = item.InnerHtml.Substring("<br>Cost: ", " NP<br>");
-                    var in_stock = item.InnerHtml.Substring("</b><br>", " in stock");
-                    var image = item.InnerHtml.Substring("<img src=\"", "\" width=\"80\"");
-
-                    _item_list.Add(new MainShopItem()
-                    {
-                        Name = name,
-                        HaggleUri = "http://www.neopets.com/" + haggle_url,
-                        RefererUri = "http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(),
-                        Cost = int.Parse(cost.Replace(",", "")),
-                        InStock = int.Parse(in_stock.Replace(",", "")),
-                        Image = new Uri(image)
-                    });
+                    // Out of stock... do nothing.
+                    _client.SendMessage("Shop appears to be sold out.");
+                    callback(new List<MainShopItem>());
                 }
-            }
-			
+                else
+                {
+                    var _items_in_stock = _response.DocumentNode.SelectNodes("//td[@width='120']");
+                    foreach (var item in _items_in_stock)
+                    {
+                        var name = item.InnerHtml.Substring("</a><b>", "</b><br>");
+                        var haggle_url = item.InnerHtml.Substring("this.href='", "';if (!confirm").Replace("'+'", "");
+                        var cost = item.InnerHtml.Substring("<br>Cost: ", " NP<br>");
+                        var in_stock = item.InnerHtml.Substring("</b><br>", " in stock");
+                        var image = item.InnerHtml.Substring("<img src=\"", "\" width=\"80\"");
 
-			return _item_list;
+                        _item_list.Add(new MainShopItem()
+                        {
+                            Name = name,
+                            HaggleUri = "http://www.neopets.com/" + haggle_url,
+                            RefererUri = "http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(),
+                            Cost = int.Parse(cost.Replace(",", "")),
+                            InStock = int.Parse(in_stock.Replace(",", "")),
+                            Image = new Uri(image)
+                        });
+
+                        
+                    }
+                    _client.SendMessage(String.Format("Shop appears to have {0} products.", _item_list.Count));
+                    callback.Invoke(_item_list);
+                }
+            }));
+
 		}
 
 		public static Dictionary<int, string> GetAllMainShops()
@@ -169,43 +178,53 @@ namespace NPLib
 			};
 		}
 
-		public async Task<MainShopTransaction> DoBuyProcess(MainShopItem item, int haggle)
+		public void BuyItem(MainShopItem item, int haggle, Action<MainShopTransaction> callback)
 		{
-			var _response = await _client.Get(item.HaggleUri, item.RefererUri);
+			_client.Get(item.HaggleUri, item.RefererUri, new Action<object>((response) =>
+            {
+                var _response = (string)response;
+                var captcha_url = "http://www.neopets.com/" + _response.Substring("<input type=\"image\" src=\"", "\" style=\"border");
 
-			var captcha_url = "http://www.neopets.com/" + _response.Substring("<input type=\"image\" src=\"", "\" style=\"border");
+                _client.GetBinary(captcha_url, item.RefererUri, new Action<object>((binary_data) =>
+                {
+                    var _image_data = (byte[])binary_data;
+                    using (var ms = new MemoryStream(_image_data))
+                    {
+                        var bm = new Bitmap(ms);
 
-			var _image_data = await _client.GetBinary(captcha_url, item.RefererUri);
+                        Point darkestPixel = CaptchaOCR(bm);
 
-			using (var ms = new MemoryStream(_image_data))
-			{
-				var bm = new Bitmap(ms);
+                        var _post_data = new Dictionary<string, string>()
+                        {
+                            {"current_offer", haggle.ToString()},
+                            {"x", darkestPixel.X.ToString()},
+                            {"y", darkestPixel.Y.ToString()}
+                        };
 
-				Point darkestPixel = CaptchaOCR(bm);
+                        _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data, new Action<object>((buy_response) =>
+                        {
+                            var _response_purchase = (string)buy_response;
 
-				var _post_data = new Dictionary<string, string>()
-				{
-					{"current_offer", haggle.ToString()},
-					{"x", darkestPixel.X.ToString()},
-					{"y", darkestPixel.Y.ToString()}
-				};
+                            if (_response_purchase.Contains("successful"))
+                            {
+                                callback(new MainShopTransaction()
+                                {
+                                    Name = item.Name,
+                                    PurchasePrice = haggle,
+                                });
+                            }
+                            else
+                            {
+                                callback.Invoke(null);
+                            }
+                        }));
+                        
 
-				var _response_purchase = await _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data);
+                    }
+                }));
+            }));
 
-				if (_response_purchase.Contains("successful"))
-				{
-					return new MainShopTransaction()
-					{
-						Name = item.Name,
-						PurchasePrice = haggle,
-					};
-				}
-				else
-				{
-					return null;
-				}
-				
-			}
+			
 		}
 
 		private Point CaptchaOCR(Bitmap img)

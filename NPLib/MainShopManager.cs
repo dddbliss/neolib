@@ -21,8 +21,9 @@ namespace NPLib
 
 		public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
 		{
+            string _shopName = GetAllMainShops()[object_id];
 			Task.Delay(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin)).Wait();
-            _client.SendMessage("Entering the shop.");
+            _client.SendMessage(String.Format("Entering {0}.", _shopName));
             _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml", new Action<object>((response) =>
             {
                 List<MainShopItem> _item_list = new List<MainShopItem>();
@@ -33,7 +34,7 @@ namespace NPLib
                 if (_result.Contains("sold out of"))
                 {
                     // Out of stock... do nothing.
-                    _client.SendMessage("Shop appears to be sold out.");
+                    _client.SendMessage(String.Format("{0} appears to be sold out.", _shopName));
                     callback(new List<MainShopItem>());
                 }
                 else
@@ -59,7 +60,7 @@ namespace NPLib
 
                         
                     }
-                    _client.SendMessage(String.Format("Shop appears to have {0} products.", _item_list.Count));
+                    _client.SendMessage(String.Format("{0} appears to have {1} products in stock.", _shopName, _item_list.Count));
                     callback.Invoke(_item_list);
                 }
             }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin));

@@ -17,7 +17,7 @@ namespace NPLib.Models
         {
             get
             {
-                return NP.ToString("N") + " NP";
+                return NP.ToString("N0") + " NP";
             }
         }
 	}

@@ -12,5 +12,21 @@ namespace NPLib.Models
 		public string RefererUri { get; set; }
 		public int InStock { get; set; }
 		public int Cost { get; set; }
-	}
+
+        public string DisplayCost
+        {
+            get
+            {
+                return Cost.ToString("N0") + " NP";
+            }
+        }
+
+        public string DisplayInStock
+        {
+            get
+            {
+                return "Quantity: " + InStock.ToString("N0");
+            }
+        }
+    }
 }

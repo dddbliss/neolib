@@ -16,5 +16,11 @@ namespace NPLib.Models
 
 		public decimal OCRWaitMin { get; set; }
 		public decimal OCRWaitMax { get; set; }
+
+        public Uri ProxyUri { get; set; }
+        public bool UseProxy { get; set; }
+        public string ProxyUser { get; set; }
+        public string ProxyPass { get; set; }
+        public string UserAgent { get; set; }
 	}
 }

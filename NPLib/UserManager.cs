@@ -27,7 +27,7 @@ namespace NPLib
                 {"password", password}
             };
 
-            _client.SendMessage("Attempting to log in to Neopets.");
+            _client.SendMessage("Attempting to log in to Neopets.", LogLevel.Info);
             _client.Post("http://www.neopets.com/login.phtml", "http://www.neopets.com/index.phtml", post_data, new Action<object>((response) =>
             {
                 var _result = (string)response;
@@ -37,7 +37,7 @@ namespace NPLib
                 string _np = _response.DocumentNode.SelectNodes("//a[@id='npanchor']")[0].InnerText;
                 string _nc = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']")[0].InnerText;
 
-                if (true)
+                if (_result.Contains("Welcome, "))
                 {
                     ClientManager.Instance.SendMessage("Logged into Neopets.");
                     CurrentUser = new User()
@@ -48,10 +48,12 @@ namespace NPLib
                         NC = int.Parse(_nc.Replace(",", ""))
                     };
 
+                    _client.SendMessage("Log into Neopets was successful.", LogLevel.Info);
                     callback.Invoke(true);
                 }
                 else
                 {
+                    _client.SendMessage("Log into Neopets was not successful.", LogLevel.Error);
                     callback.Invoke(false);
                 }
 

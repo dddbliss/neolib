@@ -20,7 +20,7 @@ namespace NPLib
 
 		private List<IProcessor> _processors { get; set; }
 
-        private Action<string> MessageReceiver { get; set; }
+        private Action<LogMessage> MessageReceiver { get; set; }
 		private Action<Event> EventReceiver { get; set; }
 
 		public ClientSettings Settings { get; set; }
@@ -94,14 +94,19 @@ namespace NPLib
 					_processors.ForEach(processor => processor.Process((string)data));
         }
 
-        public void RegisterMessageAction(Action<string> messageReceiver)
+        public void RegisterMessageAction(Action<LogMessage> messageReceiver)
         {
             MessageReceiver = messageReceiver;
         }
 
-        public void SendMessage(string message)
+        public void SendMessage(string message, LogLevel level = LogLevel.Info)
         {
-            MessageReceiver.Invoke(message);
+            MessageReceiver.Invoke(new LogMessage()
+            {
+                Level = level,
+                Message = message,
+                Date = DateTime.Now
+            });
         }
 
 		public void RegisterEventHandler(Action<Event> eventReceiver)

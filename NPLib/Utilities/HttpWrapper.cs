@@ -26,14 +26,29 @@ namespace NPLib.Utilities
 
         private HttpClient PrepareWebClient(string url, string referer)
         {
-			
-            HttpMessageHandler _client_handler = new HttpClientHandler()
+
+            HttpClientHandler _client_handler = new HttpClientHandler();
+
+            if(ClientManager.Instance.Settings.UseProxy)
             {
-                CookieContainer = _cookie_jar,
-            };
+                _client_handler = new HttpClientHandler()
+                {
+                    CookieContainer = _cookie_jar,
+                    UseProxy = ClientManager.Instance.Settings.UseProxy,
+                    Proxy = new WebProxy(ClientManager.Instance.Settings.ProxyUri, false, null, new NetworkCredential(ClientManager.Instance.Settings.ProxyUser, ClientManager.Instance.Settings.ProxyPass))
+
+                };
+            }
+            else
+            {
+                _client_handler = new HttpClientHandler()
+                {
+                    CookieContainer = _cookie_jar,
+                };
+            }
 
             var client = new HttpClient(_client_handler) { BaseAddress = new Uri(url) };
-			client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36");
+			client.DefaultRequestHeaders.UserAgent.ParseAdd(ClientManager.Instance.Settings.UserAgent);
 			client.DefaultRequestHeaders.Referrer = new Uri(referer);
 
 			return client;
@@ -55,7 +70,8 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-				ClientManager.Instance.SendMessage("Request failed to complete.");
+                var ex1 = ex;
+				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
 				return string.Empty;
 			}
 		}
@@ -70,7 +86,8 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-				ClientManager.Instance.SendMessage("Request failed to complete.");
+                var ex1 = ex;
+				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
 				return new byte[0];
 			}
         }
@@ -87,7 +104,8 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-				ClientManager.Instance.SendMessage("Request failed to complete.");
+                var ex1 = ex;
+				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
 				return string.Empty;
 			}
         }

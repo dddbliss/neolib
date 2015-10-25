@@ -53,6 +53,7 @@
     <Compile Include="HttpQueue.cs" />
     <Compile Include="InventoryManager.cs" />
     <Compile Include="Models\ClientSettings.cs" />
+    <Compile Include="Models\LogMessage.cs" />
     <Compile Include="Models\MainShopItem.cs" />
     <Compile Include="MainShopManager.cs" />
     <Compile Include="Models\InventoryItem.cs" />

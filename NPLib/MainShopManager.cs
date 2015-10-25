@@ -10,20 +10,20 @@ using System.Threading.Tasks;
 
 namespace NPLib
 {
-	public class MainShopManager
-	{
-		private ClientManager _client { get; set; }
+    public class MainShopManager
+    {
+        private ClientManager _client { get; set; }
 
-		public MainShopManager()
-		{
-			_client = ClientManager.Instance;
-		}
+        public MainShopManager()
+        {
+            _client = ClientManager.Instance;
+        }
 
-		public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
-		{
+        public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
+        {
             string _shopName = GetAllMainShops()[object_id];
-			Task.Delay(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin)).Wait();
-            _client.SendMessage(String.Format("Entering {0}.", _shopName));
+            Task.Delay(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin)).Wait();
+            _client.SendMessage(String.Format("Checking products in stock at {0}.", _shopName));
             _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml", new Action<object>((response) =>
             {
                 List<MainShopItem> _item_list = new List<MainShopItem>();
@@ -58,110 +58,134 @@ namespace NPLib
                             Image = new Uri(image)
                         });
 
-                        
+
                     }
                     _client.SendMessage(String.Format("{0} appears to have {1} products in stock.", _shopName, _item_list.Count), LogLevel.Info);
                     callback.Invoke(_item_list);
                 }
             }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin));
 
-		}
+        }
 
-		public void BuyItem(MainShopItem item, int haggle, Action<MainShopTransaction> callback)
-		{
-			_client.Get(item.HaggleUri, item.RefererUri, new Action<object>((response) =>
+        public void BuyItem(MainShopItem item, int haggle, decimal haggle_percent, int attempts, decimal reduction, Action<MainShopTransaction> callback)
+        {
+            bool is_attempting = false;
+            for (int attempt = 0; attempt < attempts; attempt++)
             {
-                var _response = (string)response;
+                if (!is_attempting)
+                {
+                    is_attempting = true;
+                    if (attempt > 0)
+                    {
+                        // Recalculate haggle.
+                        haggle = item.Cost  - Convert.ToInt32(item.Cost / (haggle_percent + (reduction * attempt)));
+                        _client.SendMessage(string.Format("Adjusted haggle price for {0} to {1:n0} NP.", item.Name, haggle), LogLevel.Info);
+                    }
+                    else
+                        _client.SendMessage(string.Format("Attempting to purchase {0} for {1:n0} NP.", item.Name, haggle), LogLevel.Info);
 
-                if(_response.Contains("one item every"))
-                {
-                    _client.SendMessage(string.Format("Attempted to purchase {0} too fast.", item.Name), LogLevel.Failure);
-                    Task.Delay(5000).Wait();
-                    callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
-                }
-                else if(_response.Contains("carry a maximum of"))
-                {
-                    _client.SendMessage(string.Format("Attempted to buy item with a full inventory."), LogLevel.Failure);
-                    callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
-                }
-                else if(_response.ToLower().Contains("leave this shop!!!"))
-                {
-                    _client.SendMessage(string.Format("We have been banned from purchasing."), LogLevel.Failure);
-                    callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                    _client.Get(item.HaggleUri, item.RefererUri, new Action<object>((response) =>
+                    {
+                        var _response = (string)response;
+
+                        if (_response.Contains("one item every"))
+                        {
+                            _client.SendMessage(string.Format("Attempted to purchase {0} too fast.", item.Name), LogLevel.Failure);
+                            Task.Delay(5000).Wait();
+                            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                        }
+                        else if (_response.Contains("carry a maximum of"))
+                        {
+                            _client.SendMessage(string.Format("Attempted to buy item with a full inventory."), LogLevel.Failure);
+                            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                        }
+                        else if (_response.ToLower().Contains("leave this shop!!!"))
+                        {
+                            _client.SendMessage(string.Format("We have upset the shopkeeper."), LogLevel.Failure);
+                            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                        }
+                        else
+                        {
+                            var captcha_url = "http://www.neopets.com/" + _response.Substring("<input type=\"image\" src=\"", "\" style=\"border");
+
+                            _client.GetBinary(captcha_url, item.RefererUri, new Action<object>((binary_data) =>
+                            {
+                                var _image_data = (byte[])binary_data;
+                                using (var ms = new MemoryStream(_image_data))
+                                {
+                                    var bm = new Bitmap(ms);
+
+                                    Point darkestPixel = CaptchaOCR(bm);
+
+                                    var _post_data = new Dictionary<string, string>()
+                                    {
+                                        {"current_offer", haggle.ToString()},
+                                        {"x", darkestPixel.X.ToString()},
+                                        {"y", darkestPixel.Y.ToString()}
+                                    };
+
+                                    _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data, new Action<object>((buy_response) =>
+                                    {
+                                        var _response_purchase = (string)buy_response;
+
+                                        if (_response_purchase.Contains("has been added to your inventory"))
+                                        {
+                                            _client.SendMessage(string.Format("Successful purchase of {0} for {1} NP.", item.Name, haggle.ToString("N0")), LogLevel.Success);
+                                            callback.Invoke(new MainShopTransaction()
+                                            {
+                                                Name = item.Name,
+                                                PurchasePrice = haggle,
+                                                WasSuccessful = true,
+                                                Image = item.Image,
+                                                Date = DateTime.Now
+                                            });
+                                        }
+                                        else
+                                        {
+                                            if (attempt != (attempts - 1))
+                                                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Going to attempt again?", item.Name, haggle), LogLevel.Warning);
+
+                                            is_attempting = false;
+                                        }
+
+                                    }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.OCRWaitMin, ClientManager.Instance.Settings.OCRWaitMax));
+                                }
+                            }));
+                        }
+                    }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.PreHaggleWaitMin, ClientManager.Instance.Settings.PreHaggleWaitMax));
                 }
                 else
                 {
-                    var captcha_url = "http://www.neopets.com/" + _response.Substring("<input type=\"image\" src=\"", "\" style=\"border");
-
-                    _client.GetBinary(captcha_url, item.RefererUri, new Action<object>((binary_data) =>
-                    {
-                        var _image_data = (byte[])binary_data;
-                        using (var ms = new MemoryStream(_image_data))
-                        {
-                            var bm = new Bitmap(ms);
-
-                            Point darkestPixel = CaptchaOCR(bm);
-
-                            var _post_data = new Dictionary<string, string>()
-                            {
-                            {"current_offer", haggle.ToString()},
-                            {"x", darkestPixel.X.ToString()},
-                            {"y", darkestPixel.Y.ToString()}
-                            };
-
-                            _client.Post("http://www.neopets.com/haggle.phtml", item.HaggleUri, _post_data, new Action<object>((buy_response) =>
-                            {
-                                var _response_purchase = (string)buy_response;
-
-                                if (_response_purchase.Contains("has been added to your inventory"))
-                                {
-                                    _client.SendMessage(string.Format("Successful purchase of {0} for {1} NP", item.Name, haggle.ToString("N0")), LogLevel.Success);
-                                    callback(new MainShopTransaction()
-                                    {
-                                        Name = item.Name,
-                                        PurchasePrice = haggle,
-                                        WasSuccessful = true,
-                                        Image = item.Image,
-                                        Date = DateTime.Now
-                                    });
-                                }
-                                else
-                                {
-                                    _client.SendMessage(string.Format("Failed to purchase {0} for {1} NP", item.Name, haggle.ToString("N0")), LogLevel.Failure);
-                                    callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
-                                }
-                            }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.OCRWaitMin, ClientManager.Instance.Settings.OCRWaitMax));
-
-
-                        }
-                    }));
+                    attempt--;
+                    Task.Delay(100).Wait();
                 }
-			}), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.PreHaggleWaitMin, ClientManager.Instance.Settings.PreHaggleWaitMax));
+            }
 
-			
-		}
+            _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Not attempting again.", item.Name, haggle), LogLevel.Failure);
+            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+        }
 
-		private Point CaptchaOCR(Bitmap img)
-		{
-			Point oS = new Point();
-			int width = img.Width;
-			int height = img.Height;
-			float darkPixel = 1;
-			for (int x = 0; x < width; x += 10)
-			{
-				for (int y = 0; y < height; y += 10)
-				{
-					float curPixel = img.GetPixel(x, y).GetBrightness();
-					if (curPixel < darkPixel)
-					{
-						darkPixel = curPixel;
-						oS.X = x;
-						oS.Y = y;
-					}
-				}
-			}
-			return oS;
-		}
+        private Point CaptchaOCR(Bitmap img)
+        {
+            Point oS = new Point();
+            int width = img.Width;
+            int height = img.Height;
+            float darkPixel = 1;
+            for (int x = 0; x < width; x += 10)
+            {
+                for (int y = 0; y < height; y += 10)
+                {
+                    float curPixel = img.GetPixel(x, y).GetBrightness();
+                    if (curPixel < darkPixel)
+                    {
+                        darkPixel = curPixel;
+                        oS.X = x;
+                        oS.Y = y;
+                    }
+                }
+            }
+            return oS;
+        }
 
         public static Dictionary<int, string> GetAllMainShops()
         {
@@ -277,3 +301,7 @@ namespace NPLib
         }
     }
 }
+
+    
+
+

@@ -139,6 +139,8 @@ namespace NPLib
                                                 Image = item.Image,
                                                 Date = DateTime.Now
                                             });
+
+                                            attempt = attempts;
                                         }
                                         else
                                         {

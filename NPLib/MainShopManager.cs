@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -115,7 +116,7 @@ namespace NPLib
                                 {
                                     var bm = new Bitmap(ms);
 
-                                    Point darkestPixel = CaptchaOCR(bm);
+                                    Point darkestPixel = FastCaptchaOCR(bm);
 
                                     var _post_data = new Dictionary<string, string>()
                                     {
@@ -187,6 +188,31 @@ namespace NPLib
                 }
             }
             return oS;
+        }
+
+        internal static Point FastCaptchaOCR(Bitmap img)
+        {
+            var pixels = new byte[img.Width * img.Height];
+
+            var lockedBits = img.LockBits(new Rectangle(0, 0, img.Width, img.Height), ImageLockMode.ReadOnly,
+                img.PixelFormat);
+            Marshal.Copy(lockedBits.Scan0, pixels, 0, pixels.Length);
+            var bitDepth = Image.GetPixelFormatSize(img.PixelFormat) / 8;
+
+            var darkestPoint = new Point();
+            var darkestPixelBrightness = 1.0f;
+            for (var i = 0; i < pixels.Length; i += bitDepth)
+            {
+                var currentPixelBrightness =
+                    Color.FromArgb(pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]).GetBrightness();
+                if (currentPixelBrightness > darkestPixelBrightness) continue;
+                darkestPoint = new Point(i / bitDepth % img.Width, i / bitDepth / img.Height);
+                darkestPixelBrightness = currentPixelBrightness;
+            }
+
+            img.UnlockBits(lockedBits);
+
+            return darkestPoint;
         }
 
         public static Dictionary<int, string> GetAllMainShops()
@@ -299,7 +325,7 @@ namespace NPLib
                 {84,"Neopian Music Shop"},
                 {99,"Altador Cup Souvenirs"},
                 {109,"Petpetpet Habitat"}
-            };
+            }.OrderBy(m => m.Key).ToDictionary(v => v.Key, v=> v.Value);
         }
     }
 }

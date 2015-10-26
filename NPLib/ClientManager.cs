@@ -54,6 +54,11 @@ namespace NPLib
 			}
 		}
 
+        public string GetLastRequestBody()
+        {
+            return _wrapper.LastResponse;
+        }
+
 		public void Get(string url, string referer, Action<object> action, int delay_ms = 0)
 		{	
             _queue.AddQueueItem(new HttpQueueItem(url, referer: referer, pre_delay: delay_ms, callback: action));

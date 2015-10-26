@@ -17,7 +17,12 @@ namespace NPLib.Utilities
         private HttpClient _client { get; set; }
 		private CookieContainer _cookie_jar { get; set; }
 
-		public HttpWrapper()
+        private string last_response { get; set; }
+        private byte[] last_binary_response { get; set; }
+
+        public string LastResponse { get { return last_response; } }
+
+        public HttpWrapper()
 		{
 			_cookie_jar = new CookieContainer();
 		}
@@ -33,6 +38,7 @@ namespace NPLib.Utilities
             {
                 _client_handler = new HttpClientHandler()
                 {
+                    AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip,
                     CookieContainer = _cookie_jar,
                     UseProxy = ClientManager.Instance.Settings.UseProxy,
                     Proxy = new WebProxy(ClientManager.Instance.Settings.ProxyUri, false, null, new NetworkCredential(ClientManager.Instance.Settings.ProxyUser, ClientManager.Instance.Settings.ProxyPass))
@@ -66,6 +72,7 @@ namespace NPLib.Utilities
 				HttpResponseMessage response = await me.GetAsync(url);
 				response.EnsureSuccessStatusCode();
 				string result = await response.Content.ReadAsStringAsync();
+                last_response = result;
 				return result;
 			}
 			catch (Exception ex)
@@ -82,6 +89,7 @@ namespace NPLib.Utilities
 			try
 			{
 				byte[] response = await me.GetByteArrayAsync(url);
+                last_binary_response = response;
 				return response;
 			}
 			catch (Exception ex)
@@ -100,6 +108,7 @@ namespace NPLib.Utilities
 				HttpResponseMessage response = await me.PostAsync(url, new FormUrlEncodedContent(post_data));
 				response.EnsureSuccessStatusCode();
 				string result = await response.Content.ReadAsStringAsync();
+                last_response = result;
 				return result;
 			}
 			catch (Exception ex)

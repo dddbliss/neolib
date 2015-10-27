@@ -77,9 +77,9 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-                var ex1 = ex;
 				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
-				return string.Empty;
+                throw new HttpRequestException("HTTP GET Request failed. Connection failure?", ex);
+                
 			}
 		}
 
@@ -94,9 +94,8 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-                var ex1 = ex;
 				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
-				return new byte[0];
+                throw new HttpRequestException("HTTP GET Binary Request failed. Connection failure?", ex);
 			}
         }
 
@@ -113,10 +112,9 @@ namespace NPLib.Utilities
 			}
 			catch (Exception ex)
 			{
-                var ex1 = ex;
-				ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
-				return string.Empty;
-			}
+                ClientManager.Instance.SendMessage("Request failed to complete.", Models.LogLevel.Error);
+                throw new HttpRequestException("HTTP POST Request failed. Connection failure?", ex);
+            }
         }
 
   

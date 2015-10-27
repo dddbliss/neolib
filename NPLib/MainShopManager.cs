@@ -116,7 +116,7 @@ namespace NPLib
                                 {
                                     var bm = new Bitmap(ms);
 
-                                    Point darkestPixel = FastCaptchaOCR(bm);
+                                    Point darkestPixel = CaptchaOCR(bm);
 
                                     var _post_data = new Dictionary<string, string>()
                                     {

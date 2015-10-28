@@ -70,9 +70,10 @@ namespace NPLib
 
         public void BuyItem(MainShopItem item, int haggle, decimal haggle_percent, int attempts, decimal reduction, Action<MainShopTransaction> callback)
         {
-            bool is_attempting = false;
+            bool is_attempting = false, was_successful = false;
             for (int attempt = 0; attempt < attempts; attempt++)
             {
+                
                 if (!is_attempting)
                 {
                     is_attempting = true;
@@ -140,7 +141,7 @@ namespace NPLib
                                                 Image = item.Image,
                                                 Date = DateTime.Now
                                             });
-
+                                            was_successful = true;
                                             attempt = attempts;
                                         }
                                         else
@@ -164,8 +165,12 @@ namespace NPLib
                 }
             }
 
-            _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Not attempting again.", item.Name, haggle), LogLevel.Failure);
-            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+            if(!was_successful)
+            {
+                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Not attempting again.", item.Name, haggle), LogLevel.Failure);
+                callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+            }
+            
         }
 
         private Point CaptchaOCR(Bitmap img)

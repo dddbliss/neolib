@@ -42,7 +42,7 @@ namespace NPLib.Utilities
                     CookieContainer = _cookie_jar,
                     UseProxy = ClientManager.Instance.Settings.UseProxy,
                     Proxy = new WebProxy(ClientManager.Instance.Settings.ProxyUri, false, null, new NetworkCredential(ClientManager.Instance.Settings.ProxyUser, ClientManager.Instance.Settings.ProxyPass))
-
+                    
                 };
             }
             else
@@ -56,6 +56,7 @@ namespace NPLib.Utilities
             var client = new HttpClient(_client_handler) { BaseAddress = new Uri(url) };
 			client.DefaultRequestHeaders.UserAgent.ParseAdd(ClientManager.Instance.Settings.UserAgent);
 			client.DefaultRequestHeaders.Referrer = new Uri(referer);
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
 
 			return client;
         }
@@ -73,6 +74,9 @@ namespace NPLib.Utilities
 				response.EnsureSuccessStatusCode();
 				string result = await response.Content.ReadAsStringAsync();
                 last_response = result;
+#if DEBUG
+                File.AppendAllText("Output.txt", result + ">>>>>><<<<<<");
+#endif
 				return result;
 			}
 			catch (Exception ex)
@@ -108,7 +112,10 @@ namespace NPLib.Utilities
 				response.EnsureSuccessStatusCode();
 				string result = await response.Content.ReadAsStringAsync();
                 last_response = result;
-				return result;
+#if DEBUG
+                File.AppendAllText("Output.txt", result + ">>>>>><<<<<<");
+#endif
+                return result;
 			}
 			catch (Exception ex)
 			{
@@ -119,6 +126,6 @@ namespace NPLib.Utilities
 
   
 
-		#endregion
+#endregion
 	}
 }

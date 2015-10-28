@@ -33,7 +33,7 @@ namespace NPLib
                 }
 
                 callback.Invoke(_item_list);
-            }));
+            }), ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin));
 		}
 	}
 }

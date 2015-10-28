@@ -79,7 +79,7 @@ namespace NPLib
 				object data = new object();
                 
 				// Wait for pre-defined time.
-				Task.Delay(item.PreDelay).Wait();
+				Thread.Sleep(item.PreDelay);
 			
 				switch (item.Type)
                 {

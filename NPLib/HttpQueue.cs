@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NPLib
@@ -80,14 +81,14 @@ namespace NPLib
             {
                 while(IsQueueActive)
                 {
-					if(Collection.Count() > 0)
+					if (Collection.Count() > 0)
 					{
 						var item = Collection.Take();
 						ClientManager.Instance.ProcessQueueItem(item);
 					}
 					else
 					{
-						Task.Delay(100).Wait();
+						Thread.Sleep(100);
 					}
                 }
                 

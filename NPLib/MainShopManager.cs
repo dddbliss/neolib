@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NPLib
@@ -23,7 +24,7 @@ namespace NPLib
         public void GetItemsInShop(int object_id, Action<List<MainShopItem>> callback)
         {
             string _shopName = GetAllMainShops()[object_id];
-            Task.Delay(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin)).Wait();
+			Thread.Sleep(ClientManager.Instance.GetRandomMS(ClientManager.Instance.Settings.GeneralWaitMin, ClientManager.Instance.Settings.GeneralWaitMin));
             _client.SendMessage(String.Format("Checking products in stock at {0}.", _shopName));
             _client.Get("http://www.neopets.com/objects.phtml?type=shop&obj_type=" + object_id.ToString(), "http://www.neopets.com/objects.phtml", new Action<object>((response) =>
             {
@@ -93,7 +94,7 @@ namespace NPLib
                         if (_response.Contains("one item every"))
                         {
                             _client.SendMessage(string.Format("Attempted to purchase {0} too fast.", item.Name), LogLevel.Failure);
-                            Task.Delay(5000).Wait();
+							Thread.Sleep(5000);
                             callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
                         }
                         else if (_response.Contains("carry a maximum of"))
@@ -161,7 +162,7 @@ namespace NPLib
                 else
                 {
                     attempt--;
-                    Task.Delay(100).Wait();
+                    Thread.Sleep(100);
                 }
             }
 

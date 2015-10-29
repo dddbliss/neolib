@@ -35,11 +35,17 @@ namespace NPLib
                 var _response = _result.ToHtmlDocument();
 
                 string _np = _response.DocumentNode.SelectNodes("//a[@id='npanchor']")[0].InnerText;
-                string _nc = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']")[0].InnerText;
 
-                if (_result.Contains("Welcome, "))
+                string _nc = "0";
+                
+                var _nc_node = _response.DocumentNode.SelectNodes("//a[@id='ncanchor']");
+
+                if (_nc_node.Count > 0) 
+                    _nc = _nc_node[0].InnerText;
+
+                if (_result.ToLower().Contains("welcome, "))
                 {
-                    ClientManager.Instance.SendMessage("Logged into Neopets.");
+                    _client.SendMessage("Logged into Neopets.");
                     CurrentUser = new User()
                     {
                         is_authenticated = true,

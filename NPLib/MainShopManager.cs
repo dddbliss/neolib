@@ -94,18 +94,27 @@ namespace NPLib
                         if (_response.Contains("one item every"))
                         {
                             _client.SendMessage(string.Format("Attempted to purchase {0} too fast.", item.Name), LogLevel.Failure);
-							Thread.Sleep(5000);
+							Task.Delay(4000).Wait();
                             callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                            was_successful = true;
                         }
                         else if (_response.Contains("carry a maximum of"))
                         {
                             _client.SendMessage(string.Format("Attempted to buy item with a full inventory."), LogLevel.Failure);
                             callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                            was_successful = true;
+                        }
+                        else if (_response.ToLower().Contains("sold out"))
+                        {
+                            _client.SendMessage(string.Format("{0} has been sold out.", item.Name), LogLevel.Failure);
+                            callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                            was_successful = true;
                         }
                         else if (_response.ToLower().Contains("leave this shop!!!"))
                         {
                             _client.SendMessage(string.Format("We have upset the shopkeeper."), LogLevel.Failure);
                             callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
+                            was_successful = true;
                         }
                         else
                         {
@@ -148,7 +157,7 @@ namespace NPLib
                                         else
                                         {
                                             if (attempt != (attempts - 1))
-                                                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Going to attempt again?", item.Name, haggle), LogLevel.Warning);
+                                                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP.", item.Name, haggle), LogLevel.Warning);
 
                                             is_attempting = false;
                                         }
@@ -168,7 +177,7 @@ namespace NPLib
 
             if(!was_successful)
             {
-                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP. Not attempting again.", item.Name, haggle), LogLevel.Failure);
+                _client.SendMessage(string.Format("Failed to purchase {0} for {1:n0} NP.", item.Name, haggle), LogLevel.Failure);
                 callback.Invoke(new MainShopTransaction() { Name = item.Name, Image = item.Image, Date = DateTime.Now, PurchasePrice = haggle, WasSuccessful = false });
             }
             
